@@ -8,15 +8,22 @@ https://docs.djangoproject.com/en/3.0/topics/settings/
 
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.0/ref/settings/
+
+Heroku suggests migrating away from the deprecated django-heroku package; 
+dependency issues with psycopg2 make installing required pacakges on macOS unfeasible.
+settings.py and requirements.txt have been updated to reflect suggested upgrades here: https://github.com/heroku/python-getting-started/commit/14230b2be293b5a94deb8c7caeb8c7727adb9ec0#diff-7573c57840995e8eea2a70fb274b1b8a62ecbf7679116981bed8004bf9cb8525R164
 """
 
 import os
 
-import django_heroku
+import dj_database_url
+from django.test.runner import DiscoverRunner
+from pathlib import Path
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = Path(__file__).resolve().parent.parent
 
+IS_HEROKU = "DYNO" in os.environ
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
@@ -29,7 +36,7 @@ SENSITIVE_DATA = 'FLAGTHATNEEDSTOBEFOUND'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['pygoat.herokuapp.com', '0.0.0.0.']
+ALLOWED_HOSTS = ['0.0.0.0.','127.0.0.1']
 
 
 # Application definition
@@ -130,9 +137,20 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
 
-STATIC_URL = '/static/'
-
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_URL = "static/"
+# Enable WhiteNoise's GZip compression of static assets.
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# Test Runner Config
+class HerokuDiscoverRunner(DiscoverRunner):
+    """Test Runner for Heroku CI, which provides a database for you.
+    This requires you to set the TEST database (done for you by settings().)"""
+    def setup_databases(self, **kwargs):
+        self.keepdb = True
+        return super(HerokuDiscoverRunner, self).setup_databases(**kwargs)
+# Use HerokuDiscoverRunner on Heroku CI
+if "CI" in os.environ:
+    TEST_RUNNER = "gettingstarted.settings.HerokuDiscoverRunner"
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
 
@@ -142,8 +160,9 @@ LOGIN_REDIRECT_URL='/'
 LOGOUT_REDIRECT_URL = '/'
 
 
-# Activate Django-Heroku.
-django_heroku.settings(locals())
+# Default prinary key field type
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 
 #Authentication Backend
 
